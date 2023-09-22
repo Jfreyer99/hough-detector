@@ -80,8 +80,8 @@ class CircleDetectorBuilder(object):
         self.push_image()
         return self
 
-    def with_canny_edge(self, thresHold1=100.0, thresHold2=200.0, apertureSize=3, L2gradient=False):
-        self.img = cv2.Canny(self.img, 100 ,200)
+    def with_canny_edge(self, thresHold1=100.0, thresHold2=200.0):
+        self.img = cv2.Canny(self.img, thresHold1 ,thresHold2)
         self.push_image()
         return self
 
@@ -126,25 +126,23 @@ class CircleDetectorBuilder(object):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-
-
 root = Tk()
 root.withdraw()
 
 filename = filedialog.askopenfilename(
-    initialdir="./", title="Choose an image",
+    initialdir="./Pictures", title="Choose an image",
     filetypes=[(
         "Images Files", ["*.png", "*.jpg", "*.jpeg", "*.bmp"])])
 
 img = cv2.imread(filename)
 
 cb = CircleDetectorBuilder(img, True) \
-.with_resize_absolute(800, 640) \
+.with_resize_absolute(640, 400) \
 .with_grayscale() \
-.with_clahe() \
-.with_adaptive_threshold(17, 2) \
+.with_clahe(clipLimit=4.0) \
+.with_adaptive_threshold(11, 0) \
 .with_gaussian_blur() \
-.with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1= 400, param2=0.85) \
+.with_canny_edge(50,100) \
 .show()
 #.with_canny_edge() \
 #.with_morphology() \
