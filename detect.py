@@ -5,6 +5,13 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 
 class CircleDetectorBuilder(object):
+
+    # #Split into RGB then process it
+    # #Try out Find Contours
+    # #Try out MSER blob detector
+    # Try out template Matching
+    # marker-based image segmentation using watershed algorithm
+    
     def __init__(self, img, showFlag: bool):
         self.img = img
         self.originalImage = self.img.copy()
@@ -22,7 +29,7 @@ class CircleDetectorBuilder(object):
         return NotImplemented
     
     def with_grayscale(self):
-        self.img = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        self.img = cv2.cvtColor(self.img, cv2.COLOR_RGB2GRAY)
         self.push_image()
         return self
     
@@ -73,9 +80,10 @@ class CircleDetectorBuilder(object):
         self.push_image()
         return self
 
-    def with_canny_edge(self):
+    def with_canny_edge(self, thresHold1=100.0, thresHold2=200.0, apertureSize=3, L2gradient=False):
+        self.img = cv2.Canny(self.img, 100 ,200)
         self.push_image()
-        return NotImplemented
+        return self
 
     def with_detect_circles(self, method=cv2.HOUGH_GRADIENT, dp=1, minDist=10, param1=200, param2=100):
         self.circles = cv2.HoughCircles(image=self.img,
@@ -89,7 +97,7 @@ class CircleDetectorBuilder(object):
 
     def show(self, offSetX=0, offSetY=0):
         if self.circles is None:
-            print("No circles were detected or order of build steps are wrong")
+            print("No circles were detected or order of build steps is wrong")
             self.show_images_with_offset_wrapper(offSetX, offSetY)
             return
     
@@ -119,6 +127,7 @@ class CircleDetectorBuilder(object):
         cv2.destroyAllWindows()
 
 
+
 root = Tk()
 root.withdraw()
 
@@ -133,8 +142,11 @@ cb = CircleDetectorBuilder(img, True) \
 .with_resize_absolute(800, 640) \
 .with_grayscale() \
 .with_clahe() \
+.with_adaptive_threshold(17, 2) \
 .with_gaussian_blur() \
-.with_threshold() \
-.with_morphology() \
 .with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1= 400, param2=0.85) \
 .show()
+#.with_canny_edge() \
+#.with_morphology() \
+#.with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1= 400, param2=0.85) \
+#.show()
