@@ -6,15 +6,18 @@ from tkinter.filedialog import askopenfilename
 
 class CircleDetectorBuilder(object):
 
-    # #Split into BGR then process it (On it)
-
-    # Extract Hue, Saturation, Value, Alpha (HSVa) shift the hue 80 degrees then process it (On it)
-
-    # #Try out Find Contours
-    # #Try out MSER blob detector
-
-    # Try out template Matching
+    # Testing
+    #cv2.bilateralFilter (removes noise, leaves the egdes intact) still more testing involved
+    #---------------------------------------------------------
+    # TOP PRIORITY
+    # Try out MSER blob detector
     # marker-based image segmentation using watershed algorithm
+    # Find out a way to calculate C for dyn threshold to drastically reduce background noise
+
+    #-------------------------------------------------------
+    # #Try out Find Contours
+    # Try out template Matching (pyramid)
+
     
     def __init__(self, filename: str, showFlag: bool):
         self.img = None
@@ -57,9 +60,9 @@ class CircleDetectorBuilder(object):
         hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
         h,s,v = cv2.split(hsv)
 
-        cv2.imshow('h.png', h)
-        cv2.imshow('s.png', s)
-        cv2.imshow('v.png', v)
+        # cv2.imshow('h.png', h)
+        # cv2.imshow('s.png', s)
+        # cv2.imshow('v.png', v)
 
         hnew = np.mod(h + amount, 180).astype(np.uint8)
         hsv_new = cv2.merge([hnew,s,v])
@@ -78,9 +81,9 @@ class CircleDetectorBuilder(object):
         self.img = G
         self.push_image()
 
-        cv2.imshow("BGR before Hue shift.png", bgr)
-        cv2.imshow("BGR after Hue shift.png", bgr_new)
-        cv2.imshow("BGR after Hue desat shift.png",desaturated_image_new)
+        # cv2.imshow("BGR before Hue shift.png", bgr)
+        # cv2.imshow("BGR after Hue shift.png", bgr_new)
+        # cv2.imshow("BGR after Hue desat shift.png",desaturated_image_new)
 
         return self
     
@@ -97,9 +100,9 @@ class CircleDetectorBuilder(object):
             case _:
                 self.img = R
 
-        cv2.imshow("B Channel.png", B)
-        cv2.imshow("G Channel.png", G)
-        cv2.imshow("R Channel.png", R)
+        # cv2.imshow("B Channel.png", B)
+        # cv2.imshow("G Channel.png", G)
+        # cv2.imshow("R Channel.png", R)
 
         return self
     
@@ -117,13 +120,13 @@ class CircleDetectorBuilder(object):
     def with_global_histogram(self):
         return NotImplemented
     
-    def with_adaptive_threshold(self, blockSize: int, C: float, adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C, thresholdType=cv2.THRESH_BINARY, maxValue=255):
+    def with_adaptive_threshold(self, blockSize: int, C: float, adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C, thresholdType=cv2.THRESH_BINARY_INV, maxValue=255):
         self.img = cv2.adaptiveThreshold(self.img, maxValue, adaptiveMethod, thresholdType, blockSize, C)
         self.push_image()
         return self
     
     def with_threshold(self, thresh=0.0, maxVal=255.0, threshHoldType=cv2.THRESH_OTSU):
-        _, self.img = cv2.threshold(self.img, thresh, maxVal, type= threshHoldType)
+        _, self.img = cv2.threshold(self.img, thresh, maxVal, type= threshHoldType | cv2.THRESH_BINARY_INV)
         self.push_image()
         return self
     
@@ -131,6 +134,12 @@ class CircleDetectorBuilder(object):
         self.img = cv2.GaussianBlur(self.img, kernelSize, borderType)
         self.push_image()
         return self
+    
+    def with_bilateral_blur(self, d=15):
+        self.img = cv2.bilateralFilter(self.img, 15, 75, 75)
+        cv2.imshow("bilatral blur", self.img.copy())
+        return self
+    
     
     def with_median_blur(self, kernelSize=3):
         self.img = cv2.medianBlur(self.img, kernelSize)
@@ -211,6 +220,8 @@ filename = filedialog.askopenfilename(
     filetypes=[(
         "Images Files", ["*.png", "*.jpg", "*.jpeg", "*.bmp"])])
 
+print(filename)
+
 
 # cb = CircleDetectorBuilder(filename, True) \
 # .with_read_image_unchanged() \
@@ -224,13 +235,17 @@ filename = filedialog.askopenfilename(
 
 # Try out different threshold methods
 
+
+#.with_adaptive_threshold(51,15) C >= 0 when not much to none background C < 0 when Background in Image 15, -15 solid values
 cb = CircleDetectorBuilder(filename, True) \
 .with_read_image_unchanged() \
 .with_resize_absolute(800, 640) \
 .with_hue_shift() \
-.with_clahe() \
-.with_threshold() \
-.with_gaussian_blur(kernelSize=(31,31)) \
-.with_morphology(operation=cv2.MORPH_CLOSE) \
-.with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1=200, param2=0.7 ) \
+.with_gaussian_blur(kernelSize=(9,9)) \
+.with_adaptive_threshold(51,15) \
+.with_gaussian_blur(kernelSize=(15, 15)) \
+.with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1=300, param2=0.7 ) \
 .show()
+
+#.with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1=300, param2=0.7 ) \
+#.with_clahe(clipLimit=4.0, tileGridSize=(16,16)) \
