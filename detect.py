@@ -12,10 +12,11 @@ class CircleDetectorBuilder(object):
 
     # #Try out Find Contours
     # #Try out MSER blob detector
+
     # Try out template Matching
     # marker-based image segmentation using watershed algorithm
     
-    def __init__(self, filename, showFlag: bool):
+    def __init__(self, filename: str, showFlag: bool):
         self.img = None
         self.filename = filename
         self.originalImage = None
@@ -33,7 +34,7 @@ class CircleDetectorBuilder(object):
         self.originalImage = self.img.copy()
         return self
 
-    def with_resize_absolute(self, toX=800, toY=640):
+    def with_resize_absolute(self, toX=800.0, toY=640.0):
         self.img = cv2.resize(self.img, (toX, toY))
         self.originalImage = self.img.copy()
         return self
@@ -116,12 +117,12 @@ class CircleDetectorBuilder(object):
     def with_global_histogram(self):
         return NotImplemented
     
-    def with_adaptive_threshold(self, blockSize, C, adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C, thresholdType=cv2.THRESH_BINARY, maxValue=255):
+    def with_adaptive_threshold(self, blockSize: int, C: float, adaptiveMethod=cv2.ADAPTIVE_THRESH_MEAN_C, thresholdType=cv2.THRESH_BINARY, maxValue=255):
         self.img = cv2.adaptiveThreshold(self.img, maxValue, adaptiveMethod, thresholdType, blockSize, C)
         self.push_image()
         return self
     
-    def with_threshold(self, thresh=0, maxVal=255, threshHoldType=cv2.THRESH_OTSU):
+    def with_threshold(self, thresh=0.0, maxVal=255.0, threshHoldType=cv2.THRESH_OTSU):
         _, self.img = cv2.threshold(self.img, thresh, maxVal, type= threshHoldType)
         self.push_image()
         return self
@@ -210,41 +211,26 @@ filename = filedialog.askopenfilename(
     filetypes=[(
         "Images Files", ["*.png", "*.jpg", "*.jpeg", "*.bmp"])])
 
-# cb = CircleDetectorBuilder(img, True) \
+
+# cb = CircleDetectorBuilder(filename, True) \
+# .with_read_image_unchanged() \
 # .with_resize_absolute(800, 640) \
-# .with_grayscale() \
-# .with_clahe() \
-# .with_adaptive_threshold(17, 2) \
-# .with_gaussian_blur() \
-# .with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1= 400, param2=0.85) \
+# .with_hue_shift() \
+# .with_threshold() \
+# .with_gaussian_blur(kernelSize=(31,31)) \
+# .with_morphology(operation=cv2.MORPH_CROSS) \
+# .with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1=200, param2=0.7 ) \
 # .show()
 
+# Try out different threshold methods
 
-cb2 = CircleDetectorBuilder(filename, True) \
+cb = CircleDetectorBuilder(filename, True) \
 .with_read_image_unchanged() \
 .with_resize_absolute(800, 640) \
 .with_hue_shift() \
-.with_gaussian_blur(kernelSize=(15,15)) \
 .with_clahe() \
-.with_adaptive_threshold(blockSize=11, C=0) \
-.with_morphology(kernelX=5, kernelY=5, operation=cv2.MORPH_CLOSE, iterations=6) \
-.with_canny_edge() \
+.with_threshold() \
+.with_gaussian_blur(kernelSize=(31,31)) \
+.with_morphology(operation=cv2.MORPH_CLOSE) \
+.with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1=200, param2=0.7 ) \
 .show()
-
-
-# cb = CircleDetectorBuilder(filename, True) \
-# .with_read_image() \
-# .with_resize_absolute(800, 640) \
-# .with_grayscale() \
-# .show()
-
-# cb3 = CircleDetectorBuilder(filename, True) \
-# .with_read_image_unchanged() \
-# .with_resize_absolute(800, 640) \
-# .with_split_B_G_R()
-
-
-#.with_canny_edge() \
-#.with_morphology() \
-#.with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1= 400, param2=0.85) \
-#.show()
