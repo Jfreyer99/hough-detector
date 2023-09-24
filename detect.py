@@ -120,7 +120,7 @@ class CircleDetectorBuilder(object):
     def with_global_histogram(self):
         return NotImplemented
     
-    def with_adaptive_threshold(self, blockSize: int, C: float, adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C, thresholdType=cv2.THRESH_BINARY_INV, maxValue=255):
+    def with_adaptive_threshold(self, blockSize: int, C: float, adaptiveMethod=cv2.CALIB_CB_ADAPTIVE_THRESH, thresholdType=cv2.THRESH_BINARY_INV, maxValue=255):
         self.img = cv2.adaptiveThreshold(self.img, maxValue, adaptiveMethod, thresholdType, blockSize, C)
         self.push_image()
         return self
@@ -138,6 +138,12 @@ class CircleDetectorBuilder(object):
     def with_bilateral_blur(self, d=15):
         self.img = cv2.bilateralFilter(self.img, 15, 75, 75)
         cv2.imshow("bilatral blur", self.img.copy())
+        return self
+    
+
+    def with_invert_image(self):
+        self.img = cv2.bitwise_not(self.img)
+        self.push_image()
         return self
     
     
@@ -168,6 +174,44 @@ class CircleDetectorBuilder(object):
         self.img = cv2.Canny(self.img, 100 ,200)
         self.push_image()
         return self
+    
+    def with_detect_blobs_MSER(self):
+        # Throws segmentation fault
+        # Set our filtering parameters
+        # Initialize parameter setting using cv2.SimpleBlobDetector
+        params = cv2.SimpleBlobDetector_Params()
+        
+        # Set Area filtering parameters
+        params.filterByArea = True
+        params.minArea = 50
+        
+        # Set Circularity filtering parameters
+        params.filterByCircularity = True 
+        params.minCircularity = 0.578
+        
+        # Set Convexity filtering parameters
+        params.filterByConvexity = True
+        params.minConvexity = 0.3
+            
+        # Set inertia filtering parameters
+        params.filterByInertia = True
+        params.minInertiaRatio = 0.2
+        
+        # Create a detector with the parameters
+        detector = cv2.SimpleBlobDetector_create(params)
+
+        # Detect blobs
+        keypoints = detector.detect(self.img)
+
+        # Draw blobs on our image as red circles
+        blank = np.zeros((1, 1)) 
+        blobs = cv2.drawKeypoints(self.originalImage, keypoints, blank, (209, 0, 255),
+                                cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        
+        cv2.imshow("Keypoints", blobs)
+        # cv2.waitKey(0)
+        #cv2.destroyAllWindows()
+        return self
 
     def with_detect_circles(self, method=cv2.HOUGH_GRADIENT, dp=1, minDist=10, param1=200, param2=100):
         self.circles = cv2.HoughCircles(image=self.img,
@@ -183,6 +227,8 @@ class CircleDetectorBuilder(object):
         if self.circles is None:
             print("No circles were detected or order of build steps is wrong")
             self.show_images_with_offset_wrapper(offSetX, offSetY)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
             return
     
         self.circles = np.uint16(np.around(self.circles))
@@ -191,6 +237,8 @@ class CircleDetectorBuilder(object):
             cv2.circle(self.originalImage, (i[0],i[1]),2,(255,0,0),2)
 
         self.show_images_with_offset_wrapper(offSetX, offSetY)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     def push_image(self):
         if self.showFlag:
@@ -207,8 +255,6 @@ class CircleDetectorBuilder(object):
         cv2.namedWindow('Final Image')
         cv2.moveWindow('Final Image', x, y+1200)
         cv2.imshow('Final Image', self.originalImage)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
 
 
 
@@ -222,30 +268,48 @@ filename = filedialog.askopenfilename(
 
 print(filename)
 
+# Try out different threshold methods
 
+#.with_adaptive_threshold(51,15) C >= 0 when not much to none background C < 0 when Background in Image 15, -15 solid values
 # cb = CircleDetectorBuilder(filename, True) \
 # .with_read_image_unchanged() \
 # .with_resize_absolute(800, 640) \
 # .with_hue_shift() \
-# .with_threshold() \
-# .with_gaussian_blur(kernelSize=(31,31)) \
-# .with_morphology(operation=cv2.MORPH_CROSS) \
-# .with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1=200, param2=0.7 ) \
+# .with_gaussian_blur(kernelSize=(9,9)) \
+# .with_adaptive_threshold(51,-15) \
+# .with_morphology(operation=cv2.MORPH_CLOSE) \
+# .with_gaussian_blur(kernelSize=(15, 15)) \
+# .with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1=300, param2=0.7 ) \
 # .show()
 
-# Try out different threshold methods
+
 
 
 #.with_adaptive_threshold(51,15) C >= 0 when not much to none background C < 0 when Background in Image 15, -15 solid values
+# Showcase /home/jonas/Schreibtisch/hough_detect/Pictures/stock_footage/4511214487_19ccc4554a_o.jpg
+# cb = CircleDetectorBuilder(filename, True) \
+# .with_read_image_unchanged() \
+# .with_resize_absolute(800, 640) \
+# .with_hue_shift() \
+# .with_gaussian_blur(kernelSize=(3,3)) \
+# .with_median_blur(3) \
+# .with_adaptive_threshold(51, -15) \
+# .with_gaussian_blur(kernelSize=(21,21)) \
+# .with_morphology(operation=cv2.MORPH_OPEN, kernelX=5, kernelY=5, iterations=2)\
+# .with_detect_blobs_MSER() \
+# .show()
+
+
+#For close imagine
 cb = CircleDetectorBuilder(filename, True) \
 .with_read_image_unchanged() \
 .with_resize_absolute(800, 640) \
 .with_hue_shift() \
-.with_gaussian_blur(kernelSize=(9,9)) \
-.with_adaptive_threshold(51,15) \
-.with_gaussian_blur(kernelSize=(15, 15)) \
-.with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1=300, param2=0.7 ) \
+.with_gaussian_blur(kernelSize=(21,21)) \
+.with_median_blur(3) \
+.with_adaptive_threshold(51, 15) \
+.with_dilation(kernelX=3, kernelY=3) \
+.with_adaptive_threshold(51, 15) \
+.with_erosion(kernelX=3, kernelY=3) \
+.with_detect_blobs_MSER() \
 .show()
-
-#.with_detect_circles(method=cv2.HOUGH_GRADIENT_ALT, param1=300, param2=0.7 ) \
-#.with_clahe(clipLimit=4.0, tileGridSize=(16,16)) \
