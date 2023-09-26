@@ -152,6 +152,11 @@ class CircleDetectorBuilder(object):
         self.push_image()
         return self
     
+    def with_blur(self, kernelSize=3):
+        self.img = cv2.blur(self.img, (kernelSize, kernelSize))
+        self.push_image()
+        return self
+    
     def with_erosion(self, kernelX=5, kernelY=5, iterations=1, borderType=cv2.BORDER_CONSTANT):
         kernel = np.ones((kernelX, kernelY), np.uint8)
         self.img = cv2.erode(self.img, kernel=kernel, iterations=iterations, borderType=borderType)
@@ -287,29 +292,29 @@ print(filename)
 
 #.with_adaptive_threshold(51,15) C >= 0 when not much to none background C < 0 when Background in Image 15, -15 solid values
 # Showcase /home/jonas/Schreibtisch/hough_detect/Pictures/stock_footage/4511214487_19ccc4554a_o.jpg
-# cb = CircleDetectorBuilder(filename, True) \
-# .with_read_image_unchanged() \
-# .with_resize_absolute(800, 640) \
-# .with_hue_shift() \
-# .with_gaussian_blur(kernelSize=(3,3)) \
-# .with_median_blur(3) \
-# .with_adaptive_threshold(51, -15) \
-# .with_gaussian_blur(kernelSize=(21,21)) \
-# .with_morphology(operation=cv2.MORPH_OPEN, kernelX=5, kernelY=5, iterations=2)\
-# .with_detect_blobs_MSER() \
-# .show()
-
-
-#For close imagine
 cb = CircleDetectorBuilder(filename, True) \
 .with_read_image_unchanged() \
 .with_resize_absolute(800, 640) \
 .with_hue_shift() \
+.with_median_blur(5) \
+.with_gaussian_blur(kernelSize=(5,5)) \
+.with_adaptive_threshold(51, -15) \
 .with_gaussian_blur(kernelSize=(21,21)) \
-.with_median_blur(3) \
-.with_adaptive_threshold(51, 15) \
-.with_dilation(kernelX=3, kernelY=3) \
-.with_adaptive_threshold(51, 15) \
-.with_erosion(kernelX=3, kernelY=3) \
+.with_morphology(operation=cv2.MORPH_OPEN, kernelX=5, kernelY=5, iterations=2)\
 .with_detect_blobs_MSER() \
 .show()
+
+
+#For close imagine
+# cb = CircleDetectorBuilder(filename, True) \
+# .with_read_image_unchanged() \
+# .with_resize_absolute(800, 640) \
+# .with_hue_shift() \
+# .with_blur(3) \
+# .with_gaussian_blur(kernelSize=(11,11)) \
+# .with_adaptive_threshold(51, 15) \
+# .with_dilation(kernelX=3, kernelY=3) \
+# .with_adaptive_threshold(51, 15) \
+# .with_erosion(kernelX=3, kernelY=3) \
+# .with_detect_blobs_MSER() \
+# .show()
