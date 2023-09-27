@@ -267,7 +267,7 @@ root = Tk()
 root.withdraw()
 
 filename = filedialog.askopenfilename(
-    initialdir="./Pictures", title="Choose an image",
+    initialdir="./pictures", title="Choose an image",
     filetypes=[(
         "Images Files", ["*.png", "*.jpg", "*.jpeg", "*.bmp"])])
 
