@@ -1,6 +1,9 @@
 from tkinter import filedialog
 import numpy as np
 import cv2
+from matplotlib import pyplot as plt
+from IPython.display import Image, display
+
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 
@@ -11,8 +14,8 @@ class CircleDetectorBuilder(object):
     #---------------------------------------------------------
     # TOP PRIORITY
     # Try out MSER blob detector
+    # Blob Descriptor for texture recongnition
     # marker-based image segmentation using watershed algorithm
-    # Find out a way to calculate C for dyn threshold to drastically reduce background noise
 
     #-------------------------------------------------------
     # #Try out Find Contours
@@ -120,14 +123,19 @@ class CircleDetectorBuilder(object):
     def with_global_histogram(self):
         return NotImplemented
     
-    def with_adaptive_threshold(self, blockSize: int, C: float, adaptiveMethod=cv2.CALIB_CB_ADAPTIVE_THRESH, thresholdType=cv2.THRESH_BINARY_INV, maxValue=255):
+    def with_adaptive_threshold(self, blockSize: int, C: float, adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C, thresholdType=cv2.THRESH_BINARY, maxValue=255):
         self.img = cv2.adaptiveThreshold(self.img, maxValue, adaptiveMethod, thresholdType, blockSize, C)
         self.push_image()
         return self
     
     def with_threshold(self, thresh=0.0, maxVal=255.0, threshHoldType=cv2.THRESH_OTSU):
-        _, self.img = cv2.threshold(self.img, thresh, maxVal, type= threshHoldType | cv2.THRESH_BINARY_INV)
+        _, self.img = cv2.threshold(self.img, thresh, maxVal, type= threshHoldType | cv2.THRESH_BINARY)
         self.push_image()
+        return self
+    
+    def with_pyr_mean_shift_filter(self):
+        self.img = cv2.pyrMeanShiftFiltering(self.img, 2, 12, maxLevel=2)
+        cv2.imshow("Mean shift filterd", self.img) 
         return self
     
     def with_gaussian_blur(self, kernelSize=(5,5), borderType=0):
@@ -136,7 +144,7 @@ class CircleDetectorBuilder(object):
         return self
     
     def with_bilateral_blur(self, d=15):
-        self.img = cv2.bilateralFilter(self.img, 15, 75, 75)
+        self.img = cv2.bilateralFilter(self.img, 15, 64, 64)
         cv2.imshow("bilatral blur", self.img.copy())
         return self
     
@@ -158,21 +166,89 @@ class CircleDetectorBuilder(object):
         return self
     
     def with_erosion(self, kernelX=5, kernelY=5, iterations=1, borderType=cv2.BORDER_CONSTANT):
-        kernel = np.ones((kernelX, kernelY), np.uint8)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelX, kernelY))
         self.img = cv2.erode(self.img, kernel=kernel, iterations=iterations, borderType=borderType)
         self.push_image()
         return self
     
     def with_dilation(self, kernelX=5, kernelY=5, iterations=1, borderType=cv2.BORDER_CONSTANT):
-        kernel = np.ones((kernelX, kernelY), np.uint8)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelX, kernelY))
         self.img = cv2.dilate(self.img ,kernel=kernel, iterations=iterations, borderType=borderType)
         self.push_image()
         return self
     
     def with_morphology(self, operation=cv2.MORPH_OPEN, kernelX=5, kernelY=5, iterations=1):
-        kernel = np.ones((kernelX, kernelY), np.uint8)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelX, kernelY))
         self.img = cv2.morphologyEx(self.img, operation, kernel, iterations)
         self.push_image()
+        return self
+    
+    def with_divide(self):
+        self.img = cv2.divide(self.img, cv2.GaussianBlur(self.img, (5,5), 33, 33), scale=255)
+        self.push_image()
+        return self
+    
+    def with_watershed(self):
+        # sure background area
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+
+
+        sure_bg = self.img
+        
+        # Distance transform
+        dist = cv2.distanceTransform(self.img, cv2.DIST_L2, 5)
+        cv2.imshow('Distance Transform', dist)
+        
+        #foreground area
+        ret, sure_fg = cv2.threshold(dist, 0.01 * dist.max(), 255, cv2.THRESH_BINARY)
+        sure_fg = sure_fg.astype(np.uint8)  
+        cv2.imshow('Sure Foreground', sure_fg)
+        
+        # unknown area
+        unknown = cv2.subtract(sure_bg, sure_fg)
+        cv2.imshow('Unknown', unknown)
+        
+        # Marker labelling
+        # sure foreground 
+        ret, markers = cv2.connectedComponents(sure_fg)
+        
+        # Add one to all labels so that background is not 0, but 1
+        markers += 1
+        # mark the region of unknown with zero
+        markers[unknown == 255] = 0
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.imshow(markers, cmap="tab20b")
+        ax.axis('off')
+        plt.show()
+        
+        # watershed Algorithm
+        markers = cv2.watershed(self.originalImage, markers)
+        
+        fig, ax = plt.subplots(figsize=(5, 5))
+        ax.imshow(markers, cmap="tab20b")
+        ax.axis('off')
+        plt.show()
+        
+        
+        labels = np.unique(markers)
+        
+        tree = []
+        for label in labels[:]:  
+        
+        # Create a binary image in which only the area of the label is in the foreground 
+        #and the rest of the image is in the background   
+            target = np.where(markers == label, 255, 0).astype(np.uint8)
+            
+        # Perform contour extraction on the created binary image
+            contours, hierarchy = cv2.findContours(
+                target, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
+            tree.append(contours[0])
+        
+        # Draw the outline
+        img = cv2.drawContours(self.originalImage, tree, -1, color=(0, 23, 223), thickness=1)
+        cv2.imshow("Contours",self.originalImage)
+        
         return self
 
     def with_canny_edge(self, thresHold1=100.0, thresHold2=200.0, apertureSize=3, L2gradient=False):
@@ -274,7 +350,6 @@ filename = filedialog.askopenfilename(
 print(filename)
 
 # Try out different threshold methods
-
 #.with_adaptive_threshold(51,15) C >= 0 when not much to none background C < 0 when Background in Image 15, -15 solid values
 # cb = CircleDetectorBuilder(filename, True) \
 # .with_read_image_unchanged() \
@@ -288,33 +363,38 @@ print(filename)
 # .show()
 
 
+# Detect without Background
+# cb = CircleDetectorBuilder(filename, True) \
+# .with_read_image() \
+# .with_resize_absolute(480, 360) \
+# .with_pyr_mean_shift_filter() \
+# .with_hue_shift() \
+# .with_gaussian_blur(kernelSize=(5,5))\
+# .with_adaptive_threshold(67, 15) \
+# .with_morphology(operation=cv2.MORPH_OPEN, iterations=1) \
+# .with_watershed() \
+# .show()
 
-
-#.with_adaptive_threshold(51,15) C >= 0 when not much to none background C < 0 when Background in Image 15, -15 solid values
-# Showcase /home/jonas/Schreibtisch/hough_detect/Pictures/stock_footage/4511214487_19ccc4554a_o.jpg
+# Detect with Background
 cb = CircleDetectorBuilder(filename, True) \
-.with_read_image_unchanged() \
-.with_resize_absolute(800, 640) \
+.with_read_image() \
+.with_resize_absolute(480, 360) \
+.with_bilateral_blur() \
+.with_pyr_mean_shift_filter() \
 .with_hue_shift() \
-.with_median_blur(5) \
-.with_gaussian_blur(kernelSize=(5,5)) \
-.with_adaptive_threshold(51, -15) \
-.with_gaussian_blur(kernelSize=(21,21)) \
-.with_morphology(operation=cv2.MORPH_OPEN, kernelX=5, kernelY=5, iterations=2)\
-.with_detect_blobs_MSER() \
+.with_adaptive_threshold(67, -15) \
+.with_morphology(operation=cv2.MORPH_OPEN, iterations=4) \
+.with_watershed() \
 .show()
 
 
-#For close imagine
+#Detect small to medium with background
 # cb = CircleDetectorBuilder(filename, True) \
 # .with_read_image_unchanged() \
 # .with_resize_absolute(800, 640) \
 # .with_hue_shift() \
-# .with_blur(3) \
-# .with_gaussian_blur(kernelSize=(11,11)) \
-# .with_adaptive_threshold(51, 15) \
-# .with_dilation(kernelX=3, kernelY=3) \
-# .with_adaptive_threshold(51, 15) \
-# .with_erosion(kernelX=3, kernelY=3) \
+# .with_gaussian_blur(kernelSize=(9,9)) \
+# .with_adaptive_threshold(51, -15) \
+# .with_gaussian_blur(kernelSize=(21,21)) \
 # .with_detect_blobs_MSER() \
 # .show()
