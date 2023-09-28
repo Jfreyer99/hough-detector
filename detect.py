@@ -193,9 +193,7 @@ class CircleDetectorBuilder(object):
     
     def with_watershed(self):
         # sure background area
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        
-
+        #kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         sure_bg = self.img
         
         # Distance transform
@@ -205,7 +203,8 @@ class CircleDetectorBuilder(object):
         #foreground area
         dist = dist.astype(np.uint8)
         #self.with_adaptive_threshold(31, self.C, maxValue=0.1 * dist.max())
-        ret, sure_fg = cv2.threshold(dist, 0.1 * dist.max(), 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY)
+        #ret, sure_fg = cv2.threshold(dist, 0.01 * dist.max(), 255, cv2.THRESH_BINARY)
+        ret, sure_fg = cv2.threshold(dist, 0.3 * dist.max(), 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY)
         
         sure_fg = self.img.astype(np.uint8)  
         cv2.imshow('Sure Foreground', sure_fg)
@@ -256,10 +255,6 @@ class CircleDetectorBuilder(object):
         #img = cv2.drawContours(self.originalImage, tree, -1, color=(255, 255, 255), thickness=1)
         self.img = cv2.drawContours(self.originalImage.copy(), tree, -1, color=(255, 255, 255), thickness=cv2.FILLED)
         cv2.imshow("Contours",self.img)
-        
-        
-        _, t = cv2.threshold(cv2.cvtColor(self.img.copy(), cv2.COLOR_BGR2GRAY), 255, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY)
-        cv2.imshow("Threshold contour", t)
         
         diff = cv2.subtract(cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY), cv2.cvtColor(self.originalImage, cv2.COLOR_BGR2GRAY))
         cv2.imshow("Difference",diff)
@@ -390,29 +385,30 @@ print(filename)
 # .with_watershed() \
 # .show()
 
+
 #Detect with Background
-cb = CircleDetectorBuilder(filename, True, -15) \
-.with_read_image() \
-.with_resize_absolute(480, 360) \
-.with_bilateral_blur() \
-.with_pyr_mean_shift_filter() \
-.with_hue_shift() \
-.with_adaptive_threshold(67, 0) \
-.with_morphology(operation=cv2.MORPH_OPEN, iterations=4) \
-.with_watershed() \
-.show()
-
-
-
-# cb = CircleDetectorBuilder(filename, True, 15) \
+# cb = CircleDetectorBuilder(filename, True, -15) \
 # .with_read_image() \
 # .with_resize_absolute(480, 360) \
-# .with_gaussian_blur(11, 11, kernelSize=(5,5)) \
-# .with_pyr_mean_shift_filter(10,20, maxLevel=2) \
+# .with_bilateral_blur() \
+# .with_pyr_mean_shift_filter() \
 # .with_hue_shift() \
 # .with_adaptive_threshold(67, 0) \
+# .with_morphology(operation=cv2.MORPH_OPEN, iterations=4) \
 # .with_watershed() \
 # .show()
+
+#.with_resize_absolute(480, 360) \
+
+cb = CircleDetectorBuilder(filename, True, -15) \
+.with_read_image() \
+.with_resize_absolute(720, 480) \
+.with_gaussian_blur(33, 33, kernelSize=(5,5)) \
+.with_pyr_mean_shift_filter(10,20, maxLevel=2) \
+.with_hue_shift() \
+.with_adaptive_threshold(67, 0) \
+.with_watershed() \
+.show()
 
 
 
