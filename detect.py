@@ -22,12 +22,13 @@ class CircleDetectorBuilder(object):
     # Try out template Matching (pyramid)
 
     
-    def __init__(self, filename: str, showFlag: bool):
+    def __init__(self, filename: str, showFlag: bool, C: float):
         self.img = None
         self.filename = filename
         self.originalImage = None
         self.images = [self.originalImage]
         self.showFlag = showFlag
+        self.C = C
         self.circles = None
 
     def with_read_image_unchanged(self):
@@ -123,8 +124,8 @@ class CircleDetectorBuilder(object):
     def with_global_histogram(self):
         return NotImplemented
     
-    def with_adaptive_threshold(self, blockSize: int, C: float, adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C, thresholdType=cv2.THRESH_BINARY, maxValue=255):
-        self.img = cv2.adaptiveThreshold(self.img, maxValue, adaptiveMethod, thresholdType, blockSize, C)
+    def with_adaptive_threshold(self, blockSize: int, _C: float, adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C, thresholdType=cv2.THRESH_BINARY, maxValue=255):
+        self.img = cv2.adaptiveThreshold(self.img, maxValue, adaptiveMethod, thresholdType, blockSize, self.C)
         self.push_image()
         return self
     
@@ -133,14 +134,16 @@ class CircleDetectorBuilder(object):
         self.push_image()
         return self
     
-    def with_pyr_mean_shift_filter(self):
-        self.img = cv2.pyrMeanShiftFiltering(self.img, 2, 12, maxLevel=2)
+    
+    def with_pyr_mean_shift_filter(self, sp=2, sr=12, maxLevel=2):
+        self.img = cv2.pyrMeanShiftFiltering(self.img, sp, sr, maxLevel=2)
         cv2.imshow("Mean shift filterd", self.img) 
         return self
     
-    def with_gaussian_blur(self, kernelSize=(5,5), borderType=0):
-        self.img = cv2.GaussianBlur(self.img, kernelSize, borderType)
-        self.push_image()
+    def with_gaussian_blur(self, sigmaX, sigmaY, kernelSize=(5,5), borderType=0):
+        self.img = cv2.GaussianBlur(self.img, kernelSize, borderType, sigmaX, sigmaY)
+        cv2.imshow("Gauss", self.img.copy())
+        #self.push_image()
         return self
     
     def with_bilateral_blur(self, d=15):
@@ -191,7 +194,7 @@ class CircleDetectorBuilder(object):
     def with_watershed(self):
         # sure background area
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-
+        
 
         sure_bg = self.img
         
@@ -200,8 +203,11 @@ class CircleDetectorBuilder(object):
         cv2.imshow('Distance Transform', dist)
         
         #foreground area
-        ret, sure_fg = cv2.threshold(dist, 0.01 * dist.max(), 255, cv2.THRESH_BINARY)
-        sure_fg = sure_fg.astype(np.uint8)  
+        dist = dist.astype(np.uint8)
+        #self.with_adaptive_threshold(31, self.C, maxValue=0.1 * dist.max())
+        ret, sure_fg = cv2.threshold(dist, 0.1 * dist.max(), 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY)
+        
+        sure_fg = self.img.astype(np.uint8)  
         cv2.imshow('Sure Foreground', sure_fg)
         
         # unknown area
@@ -246,8 +252,17 @@ class CircleDetectorBuilder(object):
             tree.append(contours[0])
         
         # Draw the outline
-        img = cv2.drawContours(self.originalImage, tree, -1, color=(0, 23, 223), thickness=1)
-        cv2.imshow("Contours",self.originalImage)
+        #
+        #img = cv2.drawContours(self.originalImage, tree, -1, color=(255, 255, 255), thickness=1)
+        self.img = cv2.drawContours(self.originalImage.copy(), tree, -1, color=(255, 255, 255), thickness=cv2.FILLED)
+        cv2.imshow("Contours",self.img)
+        
+        
+        _, t = cv2.threshold(cv2.cvtColor(self.img.copy(), cv2.COLOR_BGR2GRAY), 255, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY)
+        cv2.imshow("Threshold contour", t)
+        
+        diff = cv2.subtract(cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY), cv2.cvtColor(self.originalImage, cv2.COLOR_BGR2GRAY))
+        cv2.imshow("Difference",diff)
         
         return self
 
@@ -375,17 +390,30 @@ print(filename)
 # .with_watershed() \
 # .show()
 
-# Detect with Background
-cb = CircleDetectorBuilder(filename, True) \
+#Detect with Background
+cb = CircleDetectorBuilder(filename, True, -15) \
 .with_read_image() \
 .with_resize_absolute(480, 360) \
 .with_bilateral_blur() \
 .with_pyr_mean_shift_filter() \
 .with_hue_shift() \
-.with_adaptive_threshold(67, -15) \
+.with_adaptive_threshold(67, 0) \
 .with_morphology(operation=cv2.MORPH_OPEN, iterations=4) \
 .with_watershed() \
 .show()
+
+
+
+# cb = CircleDetectorBuilder(filename, True, 15) \
+# .with_read_image() \
+# .with_resize_absolute(480, 360) \
+# .with_gaussian_blur(11, 11, kernelSize=(5,5)) \
+# .with_pyr_mean_shift_filter(10,20, maxLevel=2) \
+# .with_hue_shift() \
+# .with_adaptive_threshold(67, 0) \
+# .with_watershed() \
+# .show()
+
 
 
 #Detect small to medium with background
